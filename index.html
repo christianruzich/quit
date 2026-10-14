@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f6f5c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Quit Tracker</title>
+<style>
+  :root {
+    --bg: #f6f7f5; --card: #ffffff; --text: #1d2420; --muted: #66726b;
+    --accent: #1f6f5c; --accent-text: #ffffff; --warn: #c2410c; --line: #dfe4e0; --bar: #8fb8ab;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121815; --card: #1b2420; --text: #e8eeea; --muted: #93a39a;
+      --accent: #3fa88c; --accent-text: #08130f; --warn: #fb923c; --line: #2b3832; --bar: #3d6b5d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  h1 { font-size: 20px; margin: 4px 0 0; }
+  h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: .04em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .big { font-size: 34px; font-weight: 700; line-height: 1; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .row.between { justify-content: space-between; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button.small { padding: 6px 10px; font-size: 14px; }
+  button:active { transform: scale(.98); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+  .chip { padding: 6px 11px; border-radius: 999px; font-size: 14px; }
+  .chip.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper output { min-width: 2ch; text-align: center; font-size: 22px; font-weight: 700; }
+  .progress { height: 12px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 10px; }
+  .progress > div { height: 100%; background: var(--accent); width: 0; transition: width .25s; }
+  .progress.over > div { background: var(--warn); }
+  .banner { border-left: 4px solid var(--warn); padding: 10px 12px; background: var(--card);
+    border-radius: 8px; border-top: 1px solid var(--line); border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line); display: none; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; justify-content: space-between; gap: 8px; align-items: center;
+    padding: 8px 0; border-top: 1px solid var(--line); }
+  li:first-child { border-top: 0; }
+  .tag { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .tag.cig { color: var(--warn); border-color: var(--warn); }
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 110px; }
+  .chart .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .chart .stack { width: 100%; display: flex; flex-direction: column; justify-content: flex-end; flex: 1; }
+  .chart .v { background: var(--bar); border-radius: 4px 4px 0 0; }
+  .chart .c { background: var(--warn); }
+  .chart .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  label { display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
+  input, select { font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); width: 100%; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  details summary { cursor: pointer; font-weight: 600; }
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Quit Tracker</h1>
+
+  <div class="banner" id="banner"></div>
+
+  <section class="card">
+    <h2>Today</h2>
+    <div class="row between">
+      <div><div class="big" id="todaySessions">0</div><div class="muted">vape sessions</div></div>
+      <div><div class="big" id="todayPuffs">0</div><div class="muted">puffs</div></div>
+      <div><div class="big" id="todayCigs">0</div><div class="muted">cigarettes</div></div>
+    </div>
+    <div class="progress" id="capBar"><div></div></div>
+    <div class="muted" id="capText"></div>
+  </section>
+
+  <section class="card">
+    <h2>Log</h2>
+    <div class="muted">Trigger</div>
+    <div class="chips" id="chips"></div>
+    <div class="row between">
+      <div class="stepper">
+        <button class="small" id="minus" aria-label="Fewer puffs">&minus;</button>
+        <output id="puffs">5</output>
+        <button class="small" id="plus" aria-label="More puffs">+</button>
+        <span class="muted">puffs</span>
+      </div>
+      <button class="primary" id="logVape">Log vape session</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="logCig">Log a cigarette</button>
+      <button id="newDevice">New device opened</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Last 7 days</h2>
+    <div class="chart" id="chart"></div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--bar)"></span>vape sessions</span>
+      <span><span class="dot" style="background:var(--warn)"></span>cigarettes</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Device</h2>
+    <div id="deviceInfo" class="muted">No device logged yet.</div>
+  </section>
+
+  <section class="card">
+    <h2>Today's entries</h2>
+    <ul id="entries"></ul>
+    <div class="muted" id="noEntries">Nothing logged yet today.</div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>Settings and data</summary>
+      <div style="display:grid; gap:10px; margin-top:12px">
+        <div class="grid2">
+          <label>Device strength (%)
+            <input id="strength" type="number" min="0" step="0.1" inputmode="decimal">
+          </label>
+          <label>Daily session cap
+            <input id="cap" type="number" min="1" step="1" inputmode="numeric">
+          </label>
+        </div>
+        <div class="grid2">
+          <label>Last-cigarette date
+            <input id="quitDate" type="date">
+          </label>
+          <label>Review date
+            <input id="reviewDate" type="date">
+          </label>
+        </div>
+        <div class="row">
+          <button id="exportCsv">Export CSV</button>
+          <button id="exportJson">Backup JSON</button>
+          <button id="importJson">Import JSON</button>
+          <input id="file" type="file" accept="application/json" hidden>
+        </div>
+        <div class="muted">Everything is stored only in this browser on this device. Export a backup now and then.</div>
+        <button id="wipe" style="color:var(--warn)">Delete all data</button>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var KEY = 'quittracker.v1';
+  var TRIGGERS = ['Coffee', 'Stress', 'Boredom', 'Social', 'Driving', 'Craving', 'Dog walk', 'Before bed', 'Walking to bus', 'Walking in town', 'Work break', 'Other'];
+  var DEFAULTS = { settings: { strength: '', dailyCap: 8, quitDate: '', reviewDate: '' }, devices: [], logs: [] };
+  var state = load();
+  var trigger = '';
+  var puffs = 5;
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function load() {
+    try {
+      var s = JSON.parse(localStorage.getItem(KEY));
+      if (s) {
+        return {
+          settings: Object.assign({}, DEFAULTS.settings, s.settings),
+          devices: s.devices || [],
+          logs: s.logs || []
+        };
+      }
+    } catch (e) {}
+    return clone(DEFAULTS);
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function dayKey(ts) {
+    var d = new Date(ts);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  function today() { return dayKey(Date.now()); }
+  function dayDiff(a, b) { // whole days from key a to key b
+    var pa = a.split('-'), pb = b.split('-');
+    var da = new Date(+pa[0], pa[1] - 1, +pa[2]), db = new Date(+pb[0], pb[1] - 1, +pb[2]);
+    return Math.round((db - da) / 86400000);
+  }
+  function timeStr(ts) {
+    var d = new Date(ts);
+    var h = d.getHours() % 12 || 12;
+    return h + ':' + pad(d.getMinutes()) + (d.getHours() < 12 ? ' AM' : ' PM');
+  }
+  function $(id) { return document.getElementById(id); }
+
+  function addLog(type) {
+    state.logs.push({
+      id: Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      t: Date.now(),
+      type: type,
+      puffs: type === 'vape' ? puffs : 0,
+      trigger: trigger
+    });
+    save();
+    render();
+  }
+
+  function render() {
+    var td = today();
+    var todays = state.logs.filter(function (l) { return dayKey(l.t) === td; });
+    var vapes = todays.filter(function (l) { return l.type === 'vape'; });
+    var cigs = todays.filter(function (l) { return l.type === 'cig'; });
+    var totalPuffs = vapes.reduce(function (n, l) { return n + l.puffs; }, 0);
+    var cap = parseInt(state.settings.dailyCap, 10) || 0;
+
+    $('todaySessions').textContent = vapes.length;
+    $('todayPuffs').textContent = totalPuffs;
+    $('todayCigs').textContent = cigs.length;
+
+    var bar = $('capBar');
+    if (cap > 0) {
+      var pct = Math.min(100, Math.round(vapes.length / cap * 100));
+      bar.firstElementChild.style.width = pct + '%';
+      bar.classList.toggle('over', vapes.length > cap);
+      $('capText').textContent = vapes.length > cap
+        ? (vapes.length - cap) + ' over your cap of ' + cap
+        : vapes.length + ' of ' + cap + ' sessions used';
+    } else {
+      bar.firstElementChild.style.width = '0';
+      $('capText').textContent = 'No daily cap set.';
+    }
+
+    renderBanner(td);
+    renderChips();
+    renderChart(td);
+    renderDevice(td);
+    renderEntries(todays);
+    $('puffs').textContent = puffs;
+  }
+
+  function renderBanner(td) {
+    var b = $('banner');
+    var msgs = [];
+    var qd = state.settings.quitDate;
+    var lastCig = state.logs.filter(function (l) { return l.type === 'cig'; })
+      .map(function (l) { return dayKey(l.t); }).sort().pop();
+    if (qd) {
+      var untilQuit = dayDiff(td, qd);
+      if (untilQuit > 0) {
+        msgs.push('Last-cigarette date is in ' + untilQuit + ' day' + (untilQuit === 1 ? '' : 's') + '.');
+      } else {
+        var since = lastCig && lastCig > qd ? lastCig : qd;
+        var n = dayDiff(since, td);
+        if (lastCig && lastCig > qd) {
+          msgs.push('Cigarette logged after your quit date. ' + (n === 0 ? 'Today.' : n + ' day(s) since.') + ' Log it, reset, keep going.');
+        } else {
+          msgs.push(n + ' day' + (n === 1 ? '' : 's') + ' since your last-cigarette date with no cigarettes logged.');
+        }
+      }
+    }
+    var rd = state.settings.reviewDate;
+    if (rd) {
+      var d = dayDiff(td, rd);
+      if (d === 0) msgs.push('Review day: check your cap, device lifespan, and whether to step down.');
+      else if (d > 0) msgs.push('Review in ' + d + ' day' + (d === 1 ? '' : 's') + '.');
+      else msgs.push('Review date passed ' + (-d) + ' day(s) ago. Set a new one.');
+    }
+    b.style.display = msgs.length ? 'block' : 'none';
+    b.textContent = msgs.join(' ');
+  }
+
+  function renderChips() {
+    var box = $('chips');
+    box.textContent = '';
+    TRIGGERS.forEach(function (name) {
+      var c = document.createElement('button');
+      c.className = 'chip small' + (trigger === name ? ' on' : '');
+      c.textContent = name;
+      c.onclick = function () { trigger = trigger === name ? '' : name; renderChips(); };
+      box.appendChild(c);
+    });
+  }
+
+  function renderChart(td) {
+    var chart = $('chart');
+    chart.textContent = '';
+    var days = [];
+    var base = new Date();
+    for (var i = 6; i >= 0; i--) {
+      var d = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i);
+      days.push({ key: dayKey(d.getTime()), label: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getDay()], v: 0, c: 0 });
+    }
+    state.logs.forEach(function (l) {
+      var k = dayKey(l.t);
+      for (var j = 0; j < days.length; j++) {
+        if (days[j].key === k) { if (l.type === 'vape') days[j].v++; else days[j].c++; }
+      }
+    });
+    var max = Math.max(1, Math.max.apply(null, days.map(function (x) { return x.v + x.c; })));
+    days.forEach(function (x) {
+      var col = document.createElement('div'); col.className = 'col';
+      var stack = document.createElement('div'); stack.className = 'stack';
+      var cEl = document.createElement('div'); cEl.className = 'c'; cEl.style.height = (x.c / max * 100) + '%';
+      var vEl = document.createElement('div'); vEl.className = 'v'; vEl.style.height = (x.v / max * 100) + '%';
+      stack.appendChild(cEl); stack.appendChild(vEl);
+      var lbl = document.createElement('div'); lbl.className = 'lbl';
+      lbl.textContent = x.label + (x.v + x.c ? ' ' + (x.v + x.c) : '');
+      col.appendChild(stack); col.appendChild(lbl);
+      chart.appendChild(col);
+    });
+  }
+
+  function renderDevice(td) {
+    var info = $('deviceInfo');
+    var devs = state.devices;
+    if (!devs.length) { info.textContent = 'No device logged yet. Tap "New device opened" when you open one.'; return; }
+    var cur = devs[devs.length - 1];
+    var lines = ['Current device: day ' + (dayDiff(cur, td) + 1) + ' (opened ' + cur + ').'];
+    if (state.settings.strength) lines.push('Strength: ' + state.settings.strength + '%.');
+    if (devs.length > 1) {
+      var last = devs[devs.length - 2];
+      lines.push('Previous device lasted ' + dayDiff(last, cur) + ' day(s).');
+    }
+    info.textContent = lines.join(' ');
+  }
+
+  function renderEntries(todays) {
+    var ul = $('entries');
+    ul.textContent = '';
+    $('noEntries').style.display = todays.length ? 'none' : 'block';
+    todays.slice().sort(function (a, b) { return b.t - a.t; }).forEach(function (l) {
+      var li = document.createElement('li');
+      var left = document.createElement('div');
+      var tag = document.createElement('span');
+      tag.className = 'tag' + (l.type === 'cig' ? ' cig' : '');
+      tag.textContent = l.type === 'cig' ? 'cigarette' : 'vape';
+      left.appendChild(tag);
+      var txt = document.createElement('span');
+      txt.textContent = ' ' + timeStr(l.t) + (l.type === 'vape' ? ' · ' + l.puffs + ' puffs' : '') + (l.trigger ? ' · ' + l.trigger : '');
+      left.appendChild(txt);
+      var del = document.createElement('button');
+      del.className = 'small'; del.textContent = 'Delete';
+      del.onclick = function () {
+        state.logs = state.logs.filter(function (x) { return x.id !== l.id; });
+        save(); render();
+      };
+      li.appendChild(left); li.appendChild(del);
+      ul.appendChild(li);
+    });
+  }
+
+  // Controls
+  $('minus').onclick = function () { puffs = Math.max(1, puffs - 1); $('puffs').textContent = puffs; };
+  $('plus').onclick = function () { puffs = Math.min(99, puffs + 1); $('puffs').textContent = puffs; };
+  $('logVape').onclick = function () { addLog('vape'); };
+  $('logCig').onclick = function () { addLog('cig'); };
+  $('newDevice').onclick = function () {
+    var t = today();
+    if (state.devices[state.devices.length - 1] === t) return;
+    state.devices.push(t); save(); render();
+  };
+
+  // Settings
+  function loadSettingsUI() {
+    $('strength').value = state.settings.strength;
+    $('cap').value = state.settings.dailyCap;
+    $('quitDate').value = state.settings.quitDate;
+    $('reviewDate').value = state.settings.reviewDate;
+  }
+  $('strength').onchange = function () { state.settings.strength = this.value; save(); render(); };
+  $('cap').onchange = function () { state.settings.dailyCap = this.value; save(); render(); };
+  $('quitDate').onchange = function () { state.settings.quitDate = this.value; save(); render(); };
+  $('reviewDate').onchange = function () { state.settings.reviewDate = this.value; save(); render(); };
+
+  // Export / import
+  function download(name, mime, text) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+  $('exportCsv').onclick = function () {
+    var rows = ['date,time,type,puffs,trigger'];
+    state.logs.slice().sort(function (a, b) { return a.t - b.t; }).forEach(function (l) {
+      var d = new Date(l.t);
+      rows.push([dayKey(l.t), pad(d.getHours()) + ':' + pad(d.getMinutes()), l.type, l.puffs,
+        '"' + String(l.trigger || '').replace(/"/g, '""') + '"'].join(','));
+    });
+    download('quit-tracker-' + today() + '.csv', 'text/csv', rows.join('\n'));
+  };
+  $('exportJson').onclick = function () {
+    download('quit-tracker-backup-' + today() + '.json', 'application/json', JSON.stringify(state, null, 2));
+  };
+  $('importJson').onclick = function () { $('file').click(); };
+  $('file').onchange = function () {
+    var f = this.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var s = JSON.parse(r.result);
+        if (!s || !Array.isArray(s.logs)) throw new Error('bad file');
+        if (!confirm('Replace current data with this backup?')) return;
+        state = {
+          settings: Object.assign({}, DEFAULTS.settings, s.settings),
+          devices: Array.isArray(s.devices) ? s.devices : [],
+          logs: s.logs
+        };
+        save(); loadSettingsUI(); render();
+      } catch (e) { alert('That file is not a valid backup.'); }
+    };
+    r.readAsText(f);
+    this.value = '';
+  };
+  $('wipe').onclick = function () {
+    if (!confirm('Delete all logs and settings from this device?')) return;
+    state = clone(DEFAULTS); save(); loadSettingsUI(); render();
+  };
+
+  loadSettingsUI();
+  render();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
